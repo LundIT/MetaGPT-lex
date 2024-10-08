@@ -115,19 +115,33 @@ class OutputParser:
             tasks = text.split("\n")
         return tasks
 
+    # @staticmethod
+    # def parse_python_code(text: str) -> str:
+    #     for pattern in (r"(.*?```python.*?\s+)?(?P<code>.*)(```.*?)", r"(.*?```python.*?\s+)?(?P<code>.*)"):
+    #         match = re.search(pattern, text, re.DOTALL)
+    #         if not match:
+    #             continue
+    #         code = match.group("code")
+    #         if not code:
+    #             continue
+    #         with contextlib.suppress(Exception):
+    #             ast.parse(code)
+    #             return code
+    #     raise ValueError("Invalid python code")
+
     @staticmethod
     def parse_python_code(text: str) -> str:
-        for pattern in (r"(.*?```python.*?\s+)?(?P<code>.*)(```.*?)", r"(.*?```python.*?\s+)?(?P<code>.*)"):
-            match = re.search(pattern, text, re.DOTALL)
-            if not match:
-                continue
-            code = match.group("code")
-            if not code:
-                continue
-            with contextlib.suppress(Exception):
-                ast.parse(code)
-                return code
-        raise ValueError("Invalid python code")
+        pattern = r"```python(.*)```"
+        match = re.search(pattern, text, re.DOTALL)
+        code_text = match.group(1) if match else text
+        return code_text
+
+    @staticmethod
+    def parse_jscode(text: str) -> str:
+        pattern = r"```(?:javascript|typescript|jsx)([\s\S]*?)```"
+        match = re.search(pattern, text, re.DOTALL)
+        code_text = match.group(1).strip() if match else text
+        return code_text
 
     @classmethod
     def parse_data(cls, data):
