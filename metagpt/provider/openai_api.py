@@ -39,6 +39,14 @@ from metagpt.utils.token_counter import (
     get_max_completion_tokens,
 )
 
+import importlib
+
+# Try importing global_message_queue
+try:
+    lex_utils = importlib.import_module("lex.lex_ai.utils")
+    global_message_queue = getattr(lex_utils, "global_message_queue", None)
+except ImportError:
+    global_message_queue = None
 
 @register_provider(
     [
@@ -99,6 +107,11 @@ class OpenAILLM(BaseLLM):
             )
             log_llm_stream(chunk_message)
             collected_messages.append(chunk_message)
+
+            # Conditionally send to global_message_queue if it exists
+            if global_message_queue:
+                await global_message_queue.put(chunk_message)
+
             chunk_has_usage = hasattr(chunk, "usage") and chunk.usage
             if has_finished:
                 # for oneapi, there has a usage chunk after finish_reason not none chunk
@@ -106,59 +119,23 @@ class OpenAILLM(BaseLLM):
                     usage = CompletionUsage(**chunk.usage) if isinstance(chunk.usage, dict) else chunk.usage
             if finish_reason:
                 if chunk_has_usage:
-                    # Some services have usage as an attribute of the chunk, such as Fireworks
                     if isinstance(chunk.usage, CompletionUsage):
                         usage = chunk.usage
                     else:
                         usage = CompletionUsage(**chunk.usage)
                 elif hasattr(chunk.choices[0], "usage"):
-                    # The usage of some services is an attribute of chunk.choices[0], such as Moonshot
                     usage = CompletionUsage(**chunk.choices[0].usage)
                 elif "openrouter.ai" in self.config.base_url and chunk_has_usage:
-                    # due to it get token cost from api
                     usage = chunk.usage
                 has_finished = True
 
         log_llm_stream("\n")
         full_reply_content = "".join(collected_messages)
         if not usage:
-            # Some services do not provide the usage attribute, such as OpenAI or OpenLLM
             usage = self._calc_usage(messages, full_reply_content)
 
         self._update_costs(usage)
         return full_reply_content
-
-    # async def _achat_completion_stream(self, messages: list[dict], timeout=USE_CONFIG_TIMEOUT) -> str:
-    #     response: AsyncStream[ChatCompletionChunk] = await self.aclient.chat.completions.create(
-    #         **self._cons_kwargs(messages, timeout=self.get_timeout(timeout)), stream=True
-    #     )
-    #     usage = None
-    #     collected_messages = []
-    #     async for chunk in response:
-    #         chunk_message = chunk.choices[0].delta.content or "" if chunk.choices else ""  # extract the message
-    #         finish_reason = (
-    #             chunk.choices[0].finish_reason if chunk.choices and hasattr(chunk.choices[0], "finish_reason") else None
-    #         )
-    #         log_llm_stream(chunk_message)
-    #         collected_messages.append(chunk_message)
-    #
-    #         if finish_reason:
-    #             if hasattr(chunk, "usage") and chunk.usage:
-    #                 # Some services have usage as an attribute of the chunk, such as Fireworks
-    #                 usage = CompletionUsage(**chunk.usage)
-    #             elif hasattr(chunk.choices[0], "usage") and chunk.choices[0].usage:
-    #                 # The usage of some services is an attribute of chunk.choices[0], such as Moonshot
-    #                 usage = CompletionUsage(**chunk.choices[0].usage)
-    #
-    #     log_llm_stream("\n")
-    #     full_reply_content = "".join(collected_messages)
-    #     if not usage:
-    #         # Some services do not provide the usage attribute, such as OpenAI or OpenLLM
-    #         usage = self._calc_usage(messages, full_reply_content)
-    #
-    #     self._update_costs(usage)
-    #     return full_reply_content
-
 
     def _cons_kwargs(self, messages: list[dict], timeout=USE_CONFIG_TIMEOUT, **extra_kwargs) -> dict:
         kwargs = {
