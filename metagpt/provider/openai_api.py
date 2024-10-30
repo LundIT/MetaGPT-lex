@@ -41,12 +41,11 @@ from metagpt.utils.token_counter import (
 
 import importlib
 
-# Try importing global_message_queue
+# Try importing StreamProcessor from lex.lex_ai.helpers
 try:
-    lex_utils = importlib.import_module("lex.lex_ai.utils")
-    global_message_queue = getattr(lex_utils, "global_message_queue", None)
-except ImportError:
-    global_message_queue = None
+    StreamProcessor = getattr(importlib.import_module("lex.lex_ai.helpers.StreamProcessor"), "StreamProcessor")
+except (ImportError, AttributeError):
+    StreamProcessor = None
 
 @register_provider(
     [
@@ -101,16 +100,19 @@ class OpenAILLM(BaseLLM):
         collected_messages = []
         has_finished = False
         async for chunk in response:
+
             chunk_message = chunk.choices[0].delta.content or "" if chunk.choices else ""  # extract the message
             finish_reason = (
                 chunk.choices[0].finish_reason if chunk.choices and hasattr(chunk.choices[0], "finish_reason") else None
             )
+
             log_llm_stream(chunk_message)
             collected_messages.append(chunk_message)
 
             # Conditionally send to global_message_queue if it exists
-            if global_message_queue:
-                await global_message_queue.put(chunk_message)
+            if StreamProcessor:
+                await StreamProcessor.global_message_queue.put(chunk_message)
+
 
             chunk_has_usage = hasattr(chunk, "usage") and chunk.usage
             if has_finished:
@@ -174,7 +176,7 @@ class OpenAILLM(BaseLLM):
     async def acompletion_text(self, messages: list[dict], stream=False, timeout=USE_CONFIG_TIMEOUT) -> str:
         """when streaming, print each token in place."""
         if stream:
-            return await self._achat_completion_stream(messages, timeout=timeout)
+            return await self._achat_completion_stream(messages=messages, timeout=timeout)
 
         rsp = await self._achat_completion(messages, timeout=self.get_timeout(timeout))
         return self.get_choice_text(rsp)
