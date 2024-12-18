@@ -41,9 +41,9 @@ from metagpt.utils.token_counter import (
 
 import importlib
 
-# Try importing StreamProcessor from lex.lex_ai.helpers
+# Try importing StreamProcessor from lex_ai.helpers
 try:
-    StreamProcessor = getattr(importlib.import_module("lex.lex_ai.helpers.StreamProcessor"), "StreamProcessor")
+    StreamProcessor = getattr(importlib.import_module("lex_ai.helpers.StreamProcessor"), "StreamProcessor")
 except (ImportError, AttributeError):
     StreamProcessor = None
 
