@@ -84,7 +84,7 @@ class DataInterpreter(Role):
         """Useful in 'react' mode. Return a Message conforming to Role._act interface."""
         code, result, _ = await self._write_and_exec_code()
         if hasattr(self, "code_result") and self.code_result:
-            return Message(content=result, role="assistant", cause_by=ExecuteNbCode)
+            return Message(content=f'("{code}", "{result}")', role="assistant", cause_by=ExecuteNbCode)
         return Message(content=code, role="assistant", cause_by=WriteAnalysisCode)
 
     async def _plan_and_act(self) -> Message:
