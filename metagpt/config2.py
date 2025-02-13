@@ -106,10 +106,16 @@ class Config(CLIParams, YamlModel):
         ]
 
         dicts = [dict(os.environ)]
-        dicts += [Config.read_yaml(path) for path in default_config_paths]
+        dicts += [{k: Config.maybe_eval(v) for (k,v) in Config.read_yaml(path).items()} for path in default_config_paths]
         final = merge_dict(dicts)
         return Config(**final)
 
+    def maybe_eval(cls, st):
+        try:
+            result = eval(st)
+            return result
+        except Exception as e:
+            return st
     @classmethod
     def from_llm_config(cls, llm_config: dict):
         """user config llm
