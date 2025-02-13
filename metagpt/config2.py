@@ -114,7 +114,10 @@ class Config(CLIParams, YamlModel):
     def maybe_eval(cls, st):
         try:
             result = eval(st)
-            return result
+            if isinstance(result, dict):
+                return result
+            else:
+                return st
         except Exception as e:
             return st
     @classmethod
