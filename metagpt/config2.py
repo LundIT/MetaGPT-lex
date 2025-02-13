@@ -105,11 +105,12 @@ class Config(CLIParams, YamlModel):
             CONFIG_ROOT / "config2.yaml",
         ]
 
-        dicts = [{k: Config.maybe_eval(v) for (k,v) in dict(os.environ).items()}]
+        dicts = [{k: Config.maybe_eval(v) for (k, v) in dict(os.environ).items()}]
         dicts += [Config.read_yaml(path).items() for path in default_config_paths]
         final = merge_dict(dicts)
         return Config(**final)
 
+    @classmethod
     def maybe_eval(cls, st):
         try:
             result = eval(st)
